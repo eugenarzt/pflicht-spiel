@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Pflicht Spiel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1e1e1e;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .box {
+      text-align: center;
+      max-width: 400px;
+    }
+    button {
+      padding: 15px 25px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #7c3aed;
+      color: white;
+      margin-top: 20px;
+    }
+    button:hover {
+      background: #6d28d9;
+    }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h1>🔥 Pflicht 🔥</h1>
+  <p id="pflicht">Drück auf den Button 😏</p>
+  <button onclick="neuePflicht()">Neue Pflicht</button>
+</div>
+
+<script>
+  const pflichten = [
+    "Mach 10 Liegestütze",
+    "Trink einen Schluck",
+    "Tanz 30 Sekunden",
+    "Schick jemandem ein ❤️",
+    "Erzähl eine peinliche Story"
+  ];
+
+  function neuePflicht() {
+    const zufall = Math.floor(Math.random() * pflichten.length);
+    document.getElementById("pflicht").innerText = pflichten[zufall];
+  }
+</script>
+
+</body>
+</html>
