@@ -2,34 +2,74 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pflicht Spiel</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #1e1e1e;
-      color: white;
+      background: #c1121f;
+      color: #c1121f;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
       margin: 0;
     }
+
     .box {
+      background: white;
+      padding: 25px;
+      border-radius: 16px;
       text-align: center;
-      max-width: 400px;
+      width: 90%;
+      max-width: 420px;
     }
-    button {
-      padding: 15px 25px;
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 10px;
       font-size: 18px;
-      border: none;
       border-radius: 8px;
-      cursor: pointer;
-      background: #7c3aed;
-      color: white;
-      margin-top: 20px;
+      border: 2px solid #c1121f;
     }
-    button:hover {
-      background: #6d28d9;
+
+    #spieler {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    #phase {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    #pflicht {
+      font-size: 24px;
+      margin: 25px 0;
+      min-height: 80px;
+    }
+
+    button {
+      width: 100%;
+      padding: 18px;
+      font-size: 22px;
+      border-radius: 12px;
+      background: white;
+      color: #c1121f;
+      border: 3px solid #c1121f;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: scale(0.97);
     }
   </style>
 </head>
@@ -37,22 +77,170 @@
 
 <div class="box">
   <h1>🔥 Pflicht 🔥</h1>
-  <p id="pflicht">Drück auf den Button 😏</p>
-  <button onclick="neuePflicht()">Neue Pflicht</button>
+
+  <div id="setup">
+    <input id="mannName" placeholder="Name Mann">
+    <input id="frauName" placeholder="Name Frau">
+    <button onclick="startSpiel()">Spiel starten</button>
+  </div>
+
+  <div id="spiel" style="display:none;">
+    <div id="spieler"></div>
+    <div id="phase"></div>
+    <div id="pflicht">Bereit 😏</div>
+    <button onclick="neuePflicht()">Nächste Pflicht</button>
+  </div>
 </div>
 
 <script>
-  const pflichten = [
-    "Mach 10 Liegestütze",
-    "Trink einen Schluck",
-    "Tanz 30 Sekunden",
-    "Schick jemandem ein ❤️",
-    "Erzähl eine peinliche Story"
-  ];
+  function mischen(array) {
+    return array.sort(() => Math.random() - 0.5);
+  }
+
+  let mannName = "";
+  let frauName = "";
+
+  const stufen = ["easy", "middle", "hard"];
+  let aktuelleStufeIndex = 0;
+
+  let zug = "mann"; // Mann beginnt
+
+  let pools = {};
+
+  const pflichten = {
+    mann: {
+      easy: [
+        "Trink einen Schluck",
+        "Mach 10 Liegestütze",
+        "Sag etwas Nettes",
+        "Tanz 20 Sekunden",
+        "Erzähl einen Witz",
+        "Mach eine Grimasse",
+        "Lächle breit",
+        "Klopf dir selbst Applaus",
+        "Steh einmal auf",
+        "Gähn extra laut"
+      ],
+      middle: [
+        "Zieh ein Kleidungsstück aus",
+        "Mach 20 Liegestütze",
+        "Schick jemandem ein Emoji",
+        "Tanz 1 Minute",
+        "Erzähl eine peinliche Story",
+        "Imitiere jemanden",
+        "Sprich 1 Runde mit Akzent",
+        "Trink 2 Schlucke",
+        "Mach 30 Kniebeugen",
+        "Lass dir eine Aufgabe geben"
+      ],
+      hard: [
+        "Zieh zwei Kleidungsstücke aus",
+        "Mach 40 Liegestütze",
+        "Flüstere etwas Freches",
+        "Tanz sexy 1 Minute",
+        "Erzähl dein größtes Geheimnis",
+        "Mach einen Shot",
+        "Schick eine mutige Nachricht",
+        "Lass dich bewerten",
+        "Lass dich filmen",
+        "Erfülle eine Wunsch-Pflicht"
+      ]
+    },
+
+    frau: {
+      easy: [
+        "Trink einen Schluck",
+        "Dreh dich einmal im Kreis",
+        "Lächle süß",
+        "Klatsch 10x",
+        "Sag deinen Spitznamen",
+        "Mach eine Pose",
+        "Wink jemandem",
+        "Streck dich",
+        "Zwinker",
+        "Sag Hallo laut"
+      ],
+      middle: [
+        "Zieh ein Kleidungsstück aus",
+        "Tanz 1 Minute",
+        "Erzähl eine peinliche Story",
+        "Mach 20 Kniebeugen",
+        "Schick jemandem ein Herz",
+        "Imitiere ein Tier",
+        "Sprich 1 Runde flüsternd",
+        "Trink 2 Schlucke",
+        "Mach ein Selfie",
+        "Lass dir eine Aufgabe geben"
+      ],
+      hard: [
+        "Zieh zwei Kleidungsstücke aus",
+        "Tanz sexy 1 Minute",
+        "Erzähl ein Geheimnis",
+        "Mach einen Shot",
+        "Flüstere etwas Freches",
+        "Schick eine mutige Nachricht",
+        "Lass dich bewerten",
+        "Mach eine heiße Pose",
+        "Lass dich filmen",
+        "Erfülle eine Wunsch-Pflicht"
+      ]
+    }
+  };
+
+  function startSpiel() {
+    mannName = document.getElementById("mannName").value || "Mann";
+    frauName = document.getElementById("frauName").value || "Frau";
+
+    document.getElementById("setup").style.display = "none";
+    document.getElementById("spiel").style.display = "block";
+
+    aktuelleStufeIndex = 0;
+    zug = "mann";
+
+    poolsNeuErstellen();
+    updateAnzeige();
+  }
+
+  function poolsNeuErstellen() {
+    const stufe = stufen[aktuelleStufeIndex];
+    pools = {
+      mann: mischen([...pflichten.mann[stufe]]),
+      frau: mischen([...pflichten.frau[stufe]])
+    };
+  }
 
   function neuePflicht() {
-    const zufall = Math.floor(Math.random() * pflichten.length);
-    document.getElementById("pflicht").innerText = pflichten[zufall];
+    const stufe = stufen[aktuelleStufeIndex];
+
+    // Falls beide leer → nächste Stufe
+    if (pools.mann.length === 0 && pools.frau.length === 0) {
+      aktuelleStufeIndex++;
+      if (aktuelleStufeIndex >= stufen.length) {
+        document.getElementById("pflicht").innerText = "Spiel beendet 🎉";
+        document.getElementById("spieler").innerText = "";
+        document.getElementById("phase").innerText = "";
+        return;
+      }
+      poolsNeuErstellen();
+    }
+
+    // Aktueller Spieler bekommt die Frage
+    const frage = pools[zug].pop();
+    document.getElementById("pflicht").innerText = frage;
+
+    // NACH der Frage wechseln
+    zug = zug === "mann" ? "frau" : "mann";
+    updateAnzeige();
+  }
+
+  function updateAnzeige() {
+    const stufe = stufen[aktuelleStufeIndex];
+    document.getElementById("spieler").innerText =
+      (zug === "mann" ? mannName : frauName) + " ist dran";
+    document.getElementById("phase").innerText =
+      "Schwierigkeit: " + stufe.toUpperCase() +
+      " | Mann: " + pools.mann.length +
+      " | Frau: " + pools.frau.length;
   }
 </script>
 
