@@ -1,202 +1,171 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pflicht Spiel</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Space Invaders Touch</title>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #c1121f;
-      color: #c1121f;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  background: black;
+  overflow: hidden;
+  touch-action: none;
+}
 
-    .box {
-      background: white;
-      padding: 25px;
-      border-radius: 16px;
-      text-align: center;
-      width: 90%;
-      max-width: 420px;
-    }
+canvas {
+  display: block;
+  background: black;
+}
 
-    h1 {
-      font-size: 32px;
-      margin-bottom: 20px;
-    }
+#controls {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  height: 35%;
+  display: flex;
+}
 
-    input {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 14px;
-      margin-bottom: 10px;
-      font-size: 18px;
-      border-radius: 8px;
-      border: 2px solid #c1121f;
-    }
+.zone {
+  width: 40%;
+}
 
-    #spieler {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 6px;
-    }
-
-    #phase {
-      font-size: 16px;
-      margin-bottom: 10px;
-    }
-
-    #pflicht {
-      font-size: 24px;
-      margin: 25px 0;
-      min-height: 80px;
-    }
-
-    button {
-      width: 100%;
-      padding: 18px;
-      font-size: 22px;
-      border-radius: 12px;
-      background: white;
-      color: #c1121f;
-      border: 3px solid #c1121f;
-      cursor: pointer;
-    }
-
-    button:active {
-      transform: scale(0.97);
-    }
-  </style>
+#fire {
+  width: 20%;
+  background: red;
+  color: white;
+  font-size: 20px;
+  border: none;
+}
+</style>
 </head>
+
 <body>
 
-<div class="box">
-  <h1>🔥 Pflicht 🔥</h1>
+<canvas id="game"></canvas>
 
-  <div id="setup">
-    <input id="mannName" placeholder="Name Frau">
-    <input id="frauName" placeholder="Name Mann">
-    <button onclick="startSpiel()">Spiel starten</button>
-  </div>
-
-  <div id="spiel" style="display:none;">
-    <div id="spieler"></div>
-    <div id="phase"></div>
-    <div id="pflicht">Bereit 😏</div>
-    <button onclick="neuePflicht()">Nächste Pflicht</button>
-  </div>
+<div id="controls">
+  <div class="zone" id="left"></div>
+  <button id="fire">FIRE</button>
+  <div class="zone" id="right"></div>
 </div>
 
 <script>
-  function mischen(array) {
-    return array.sort(() => Math.random() - 0.5);
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = innerWidth;
+canvas.height = innerHeight * 0.65;
+
+// PLAYER
+const player = {
+  x: canvas.width / 2 - 25,
+  y: canvas.height - 40,
+  w: 50,
+  h: 20,
+  speed: 6
+};
+
+// BULLETS
+let bullets = [];
+
+// ENEMIES
+let enemies = [];
+for (let i = 0; i < 6; i++) {
+  enemies.push({
+    x: 80 + i * 90,
+    y: 40,
+    w: 40,
+    h: 25,
+    dx: 2
+  });
+}
+
+let score = 0;
+let left = false;
+let right = false;
+
+// TOUCH CONTROLS
+document.getElementById("left").addEventListener("touchstart", () => left = true);
+document.getElementById("left").addEventListener("touchend", () => left = false);
+
+document.getElementById("right").addEventListener("touchstart", () => right = true);
+document.getElementById("right").addEventListener("touchend", () => right = false);
+
+document.getElementById("fire").addEventListener("touchstart", shoot);
+
+function shoot() {
+  bullets.push({
+    x: player.x + player.w / 2 - 3,
+    y: player.y,
+    w: 6,
+    h: 14
+  });
+}
+
+function update() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Player movement
+  if (left && player.x > 0) player.x -= player.speed;
+  if (right && player.x + player.w < canvas.width) player.x += player.speed;
+
+  // Bullets
+  bullets.forEach(b => b.y -= 8);
+  bullets = bullets.filter(b => b.y > 0);
+
+  // Enemies movement
+  let edge = false;
+  enemies.forEach(e => {
+    e.x += e.dx;
+    if (e.x <= 0 || e.x + e.w >= canvas.width) edge = true;
+  });
+
+  if (edge) {
+    enemies.forEach(e => {
+      e.dx *= -1;
+      e.y += 20;
+    });
   }
 
-  let mannName = "";
-  let frauName = "";
-
-  const stufen = ["easy", "middle", "hard"];
-  let aktuelleStufeIndex = 0;
-
-  let zug = "mann"; // Mann beginnt
-
-  let pools = {};
-
-  const pflichten = {
-    mann: {
-      easy: [
-        "Fasse deiner Partnerin in die Hose",
-    
-      ],
-      middle: [
-        "Zieh dein Oberteil aus",
-       
-      ],
-      hard: [
-        "Lecke ihre Pussy 10 sekunden",
-        
-      ]
-    },
-
-    frau: {
-      easy: [
-        "Zeig deine Brüste"
-      ],
-      middle: [
-       
-        "Knete deine Tiddies"
-      ],
-      hard: [
-        ",
-        "Erfülle eine Wunsch-Pflicht"
-      ]
-    }
-  };
-
-  function startSpiel() {
-    mannName = document.getElementById("mannName").value || "Mann";
-    frauName = document.getElementById("frauName").value || "Frau";
-
-    document.getElementById("setup").style.display = "none";
-    document.getElementById("spiel").style.display = "block";
-
-    aktuelleStufeIndex = 0;
-    zug = "mann";
-
-    poolsNeuErstellen();
-    updateAnzeige();
-  }
-
-  function poolsNeuErstellen() {
-    const stufe = stufen[aktuelleStufeIndex];
-    pools = {
-      mann: mischen([...pflichten.mann[stufe]]),
-      frau: mischen([...pflichten.frau[stufe]])
-    };
-  }
-
-  function neuePflicht() {
-    const stufe = stufen[aktuelleStufeIndex];
-
-    // Falls beide leer → nächste Stufe
-    if (pools.mann.length === 0 && pools.frau.length === 0) {
-      aktuelleStufeIndex++;
-      if (aktuelleStufeIndex >= stufen.length) {
-        document.getElementById("pflicht").innerText = "Spritz ihr auf den Arsch 🎉";
-        document.getElementById("spieler").innerText = "";
-        document.getElementById("phase").innerText = "";
-        return;
+  // Collisions
+  bullets.forEach((b, bi) => {
+    enemies.forEach((e, ei) => {
+      if (
+        b.x < e.x + e.w &&
+        b.x + b.w > e.x &&
+        b.y < e.y + e.h &&
+        b.y + b.h > e.y
+      ) {
+        bullets.splice(bi, 1);
+        enemies.splice(ei, 1);
+        score++;
       }
-      poolsNeuErstellen();
-    }
+    });
+  });
 
-    // Aktueller Spieler bekommt die Frage
-    const frage = pools[zug].pop();
-    document.getElementById("pflicht").innerText = frage;
+  // Draw
+  ctx.fillStyle = "white";
+  ctx.fillRect(player.x, player.y, player.w, player.h);
 
-    // NACH der Frage wechseln
-    zug = zug === "mann" ? "frau" : "mann";
-    updateAnzeige();
-  }
+  ctx.fillStyle = "red";
+  enemies.forEach(e => ctx.fillRect(e.x, e.y, e.w, e.h));
 
-  function updateAnzeige() {
-    const stufe = stufen[aktuelleStufeIndex];
-    document.getElementById("spieler").innerText =
-      (zug === "mann" ? mannName : frauName) + " ist dran";
-    document.getElementById("phase").innerText =
-      "Schwierigkeit: " + stufe.toUpperCase() +
-      " | Mann: " + pools.mann.length +
-      " | Frau: " + pools.frau.length;
-  }
+  ctx.fillStyle = "white";
+  bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: " + score, 20, 30);
+
+  requestAnimationFrame(update);
+}
+
+update();
 </script>
 
 </body>
 </html>
+
 
 
