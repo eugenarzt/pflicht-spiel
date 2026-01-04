@@ -2,170 +2,250 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Space Invaders Touch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Live Portfolio</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  background: black;
-  overflow: hidden;
-  touch-action: none;
+:root {
+  --bg:#0b0f14;
+  --card:rgba(255,255,255,.08);
+  --green:#2ecc71;
+  --red:#e74c3c;
+  --text:#fff;
 }
 
-canvas {
-  display: block;
-  background: black;
+body{
+  margin:0;
+  background:linear-gradient(180deg,#0b0f14,#02040a);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display";
+  color:var(--text);
+  padding:20px;
 }
 
-#controls {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  height: 35%;
-  display: flex;
+h1{text-align:center;margin-bottom:10px}
+.summary{
+  background:var(--card);
+  border-radius:20px;
+  padding:16px;
+  margin-bottom:20px;
+  text-align:center;
 }
 
-.zone {
-  width: 40%;
+.card{
+  background:var(--card);
+  border-radius:22px;
+  padding:16px;
+  margin-bottom:18px;
+  backdrop-filter:blur(20px);
+  animation:fade .6s ease;
 }
 
-#fire {
-  width: 20%;
-  background: red;
-  color: white;
-  font-size: 20px;
-  border: none;
+@keyframes fade{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
 }
+
+.asset-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.asset-name{font-size:18px;font-weight:600}
+.price{font-size:22px;font-weight:700}
+
+.change{font-size:14px;margin-top:4px}
+.green{color:var(--green)}
+.red{color:var(--red)}
+
+input{
+  width:100%;
+  margin-top:10px;
+  padding:12px;
+  border:none;
+  border-radius:14px;
+  font-size:16px;
+  background:rgba(255,255,255,.1);
+  color:white;
+}
+
+.alert{
+  display:flex;
+  gap:10px;
+}
+
+canvas{margin-top:12px}
+
+.value{margin-top:8px;font-size:15px}
+
+footer{text-align:center;opacity:.4;font-size:12px;margin-top:20px}
 </style>
 </head>
 
 <body>
 
-<canvas id="game"></canvas>
+<h1>📊 Live Portfolio</h1>
 
-<div id="controls">
-  <div class="zone" id="left"></div>
-  <button id="fire">FIRE</button>
-  <div class="zone" id="right"></div>
+<div class="summary">
+  <div id="totalValue">Gesamtwert: –</div>
+  <div id="totalChange">24h: –</div>
 </div>
 
+<!-- ASSET TEMPLATE -->
+<div class="card" id="btc">
+  <div class="asset-header">
+    <div class="asset-name">Bitcoin</div>
+    <div class="price" id="btcPrice">–</div>
+  </div>
+  <div class="change" id="btcChange"></div>
+  <canvas id="btcChart" height="60"></canvas>
+  <input type="number" placeholder="BTC Anteile" step="0.0001" oninput="calculate()">
+  <div class="alert">
+    <input type="number" placeholder="Preis-Alarm €">
+    <button onclick="setAlert('btc')">⏰</button>
+  </div>
+  <div class="value" id="btcValue"></div>
+</div>
+
+<div class="card" id="eth">
+  <div class="asset-header">
+    <div class="asset-name">Ethereum</div>
+    <div class="price" id="ethPrice">–</div>
+  </div>
+  <div class="change" id="ethChange"></div>
+  <canvas id="ethChart" height="60"></canvas>
+  <input type="number" placeholder="ETH Anteile" step="0.0001" oninput="calculate()">
+  <div class="alert">
+    <input type="number" placeholder="Preis-Alarm €">
+    <button onclick="setAlert('eth')">⏰</button>
+  </div>
+  <div class="value" id="ethValue"></div>
+</div>
+
+<div class="card" id="nasdaq">
+  <div class="asset-header">
+    <div class="asset-name">NASDAQ</div>
+    <div class="price" id="nasdaqPrice">–</div>
+  </div>
+  <div class="change" id="nasdaqChange"></div>
+  <canvas id="nasdaqChart" height="60"></canvas>
+  <input type="number" placeholder="NASDAQ Anteile" step="0.01" oninput="calculate()">
+  <div class="alert">
+    <input type="number" placeholder="Preis-Alarm €">
+    <button onclick="setAlert('nasdaq')">⏰</button>
+  </div>
+  <div class="value" id="nasdaqValue"></div>
+</div>
+
+<footer>Live Daten • Auto-Update 30s</footer>
+
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let prices={}, changes={}, alerts={}, charts={};
 
-canvas.width = innerWidth;
-canvas.height = innerHeight * 0.65;
-
-// PLAYER
-const player = {
-  x: canvas.width / 2 - 25,
-  y: canvas.height - 40,
-  w: 50,
-  h: 20,
-  speed: 6
-};
-
-// BULLETS
-let bullets = [];
-
-// ENEMIES
-let enemies = [];
-for (let i = 0; i < 6; i++) {
-  enemies.push({
-    x: 80 + i * 90,
-    y: 40,
-    w: 40,
-    h: 25,
-    dx: 2
-  });
+async function cryptoHistory(id){
+  const map={btc:"bitcoin",eth:"ethereum"};
+  const r=await fetch(
+    `https://api.coingecko.com/api/v3/coins/${map[id]}/market_chart?vs_currency=eur&days=1`
+  );
+  return (await r.json()).prices.map(p=>p[1]);
 }
 
-let score = 0;
-let left = false;
-let right = false;
+async function loadCrypto(){
+  const r=await fetch(
+    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=eur&include_24hr_change=true"
+  );
+  const d=await r.json();
 
-// TOUCH CONTROLS
-document.getElementById("left").addEventListener("touchstart", () => left = true);
-document.getElementById("left").addEventListener("touchend", () => left = false);
-
-document.getElementById("right").addEventListener("touchstart", () => right = true);
-document.getElementById("right").addEventListener("touchend", () => right = false);
-
-document.getElementById("fire").addEventListener("touchstart", shoot);
-
-function shoot() {
-  bullets.push({
-    x: player.x + player.w / 2 - 3,
-    y: player.y,
-    w: 6,
-    h: 14
-  });
+  update("btc",d.bitcoin.eur,d.bitcoin.eur_24h_change,await cryptoHistory("btc"));
+  update("eth",d.ethereum.eur,d.ethereum.eur_24h_change,await cryptoHistory("eth"));
 }
 
-function update() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+async function loadNasdaq(){
+  const r=await fetch(
+    "https://query1.finance.yahoo.com/v7/finance/quote?symbols=%5EIXIC"
+  );
+  const q=(await r.json()).quoteResponse.result[0];
 
-  // Player movement
-  if (left && player.x > 0) player.x -= player.speed;
-  if (right && player.x + player.w < canvas.width) player.x += player.speed;
+  update("nasdaq",q.regularMarketPrice,q.regularMarketChangePercent,
+    Array.from({length:24},()=>q.regularMarketPrice*(1+(Math.random()-.5)/100))
+  );
+}
 
-  // Bullets
-  bullets.forEach(b => b.y -= 8);
-  bullets = bullets.filter(b => b.y > 0);
+function update(id,price,change,history){
+  prices[id]=price;changes[id]=change;
 
-  // Enemies movement
-  let edge = false;
-  enemies.forEach(e => {
-    e.x += e.dx;
-    if (e.x <= 0 || e.x + e.w >= canvas.width) edge = true;
-  });
+  document.getElementById(id+"Price").innerText=
+    price.toLocaleString("de-DE",{style:"currency",currency:"EUR"});
 
-  if (edge) {
-    enemies.forEach(e => {
-      e.dx *= -1;
-      e.y += 20;
+  const c=document.getElementById(id+"Change");
+  c.innerText=`24h: ${change.toFixed(2)}%`;
+  c.className="change "+(change>=0?"green":"red");
+
+  if(!charts[id]){
+    charts[id]=new Chart(document.getElementById(id+"Chart"),{
+      type:"line",
+      data:{labels:history.map((_,i)=>i),
+        datasets:[{data:history,borderColor:change>=0?"#2ecc71":"#e74c3c",borderWidth:2,pointRadius:0}]},
+      options:{plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}}}
     });
+  }else{
+    charts[id].data.datasets[0].data=history;
+    charts[id].update();
   }
 
-  // Collisions
-  bullets.forEach((b, bi) => {
-    enemies.forEach((e, ei) => {
-      if (
-        b.x < e.x + e.w &&
-        b.x + b.w > e.x &&
-        b.y < e.y + e.h &&
-        b.y + b.h > e.y
-      ) {
-        bullets.splice(bi, 1);
-        enemies.splice(ei, 1);
-        score++;
-      }
-    });
-  });
-
-  // Draw
-  ctx.fillStyle = "white";
-  ctx.fillRect(player.x, player.y, player.w, player.h);
-
-  ctx.fillStyle = "red";
-  enemies.forEach(e => ctx.fillRect(e.x, e.y, e.w, e.h));
-
-  ctx.fillStyle = "white";
-  bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-
-  ctx.font = "20px Arial";
-  ctx.fillText("Score: " + score, 20, 30);
-
-  requestAnimationFrame(update);
+  checkAlert(id);
+  calculate();
 }
 
-update();
+function calculate(){
+  let total=0,totalChange=0;
+  ["btc","eth","nasdaq"].forEach(id=>{
+    const amt=parseFloat(document.querySelector(`#${id} input`).value||0);
+    const val=amt*(prices[id]||0);
+    const day=val*(changes[id]||0)/100;
+    total+=val;totalChange+=day;
+
+    document.getElementById(id+"Value").innerText=
+      `Wert: ${val.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}
+       (24h: ${day>=0?"+":""}${day.toFixed(2)}€)`;
+  });
+
+  document.getElementById("totalValue").innerText=
+    "Gesamtwert: "+total.toLocaleString("de-DE",{style:"currency",currency:"EUR"});
+
+  document.getElementById("totalChange").innerText=
+    "24h: "+(totalChange>=0?"+":"")+totalChange.toFixed(2)+" €";
+}
+
+function setAlert(id){
+  const v=parseFloat(document.querySelector(`#${id} .alert input`).value);
+  if(v){alerts[id]=v;Notification.requestPermission();}
+}
+
+function checkAlert(id){
+  if(alerts[id] && prices[id]>=alerts[id]){
+    new Notification("📈 Preisalarm",{
+      body:`${id.toUpperCase()} hat ${alerts[id]}€ erreicht`
+    });
+    alerts[id]=null;
+  }
+}
+
+async function refresh(){
+  await loadCrypto();
+  await loadNasdaq();
+}
+
+refresh();
+setInterval(refresh,30000);
 </script>
 
 </body>
 </html>
+
+
 
 
 
